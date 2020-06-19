@@ -48,11 +48,10 @@ int main(int argc, char **argv)
 		data[i] = rand() / (float)RAND_MAX;
 
 	// create random data with int
-	i = 0;
 	int data_int[DATA_SIZE];
 	for (i = 0; i < count; i++)
 	{
-		data_int[i] = (int)(rand() / 10000000);
+		data_int[i] = (int)(rand() / 1000);
 	}
 
 	// Connect to a compute device
@@ -126,7 +125,7 @@ int main(int argc, char **argv)
 
 	// Write our data set into the input array in device memory
 	err = clEnqueueWriteBuffer(commands, input, CL_TRUE, 0, sizeof(float) * count, data, 0, NULL, NULL);
-	err = clEnqueueWriteBuffer(commands, input_int, CL_TRUE, 0, sizeof(int) * count, data, 0, NULL, NULL);
+	err = clEnqueueWriteBuffer(commands, input_int, CL_TRUE, 0, sizeof(int) * count, data_int, 0, NULL, NULL);
 	if (err != CL_SUCCESS)
 	{
 		printf("Error: Failed to write to source array!\n");
@@ -157,7 +156,7 @@ int main(int argc, char **argv)
 
 	// set arguments for logistic_map
 	err = 0;
-	err |= clSetKernelArg(kernel_logistic_map, 0, sizeof(cl_mem), &input);
+	err |= clSetKernelArg(kernel_logistic_map, 0, sizeof(cl_mem), &input_int);
 	err |= clSetKernelArg(kernel_logistic_map, 1, sizeof(cl_mem), &output_logistic_map);
 	if (err != CL_SUCCESS)
 	{
@@ -174,12 +173,21 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
+	// Get the maximum work group size for executing the kernel on the device
+	size_t local_logistic_map;
+	err = clGetKernelWorkGroupInfo(kernel_square, device_id, CL_KERNEL_WORK_GROUP_SIZE, sizeof(local_logistic_map), &local_logistic_map, NULL);
+	if (err != CL_SUCCESS)
+	{
+		printf("Error: Failed to retrieve kernel work group info! %d\n", err);
+		exit(1);
+	}
+
 	// Execute the kernel over the entire range of our 1d input data set
 	// using the maximum number of work group items for this device
 	size_t global = count;
 	err = clEnqueueNDRangeKernel(commands, kernel_square, 1, NULL, &global, &local, 0, NULL, NULL);
 	err = clEnqueueNDRangeKernel(commands, kernel_vector_add, 1, NULL, &global, &local, 0, NULL, NULL);
-	err = clEnqueueNDRangeKernel(commands, kernel_logistic_map, 1, NULL, &global, &local, 0, NULL, NULL);
+	err = clEnqueueNDRangeKernel(commands, kernel_logistic_map, 1, NULL, &global, &local_logistic_map, 0, NULL, NULL);
 	if (err)
 	{
 		printf("Error: Failed to execute kernel!\n");
@@ -229,7 +237,7 @@ int main(int argc, char **argv)
 		{
 			correct_logistic_map++;
 		}
-		else
+		else if (i < 30)
 		{
 			printf("input: %d, expected %d, but got %d\n", data_int[i], correct_ans_i, results_logistic_map[i]);
 		}
