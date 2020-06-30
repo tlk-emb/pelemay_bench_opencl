@@ -22,7 +22,7 @@
 
 // -----------
 
-int DATA_SIZE = 1024;
+int DATA_SIZE = 4096;
 int TEST_ITER = 5000;
 
 int main(int argc, char **argv)
@@ -50,13 +50,22 @@ int main(int argc, char **argv)
 	float data[DATA_SIZE];
 	unsigned int count = DATA_SIZE;
 	for (i = 0; i < count; i++)
-		data[i] = rand() / (float)RAND_MAX;
+		// data[i] = rand() / (float)RAND_MAX;
+		data[i] = (float)i;
 
-	// create random data with int
-	long int data_int[DATA_SIZE];
+	int data_int[DATA_SIZE];
 	for (i = 0; i < count; i++)
 	{
-		data_int[i] = (long int)(rand() / 1000);
+		// data_int[i] = (long int)(rand() / 1000);
+		data_int[i] = (int)i;
+	}
+
+	// create random data with int
+	long int data_long_int[DATA_SIZE];
+	for (i = 0; i < count; i++)
+	{
+		// data_int[i] = (long int)(rand() / 1000);
+		data_int[i] = (long int)i;
 	}
 
 	// Connect to a compute device
@@ -109,7 +118,8 @@ int main(int argc, char **argv)
 	//
 	cl_kernel kernel_square = clCreateKernel(program, "square", &err);
 	cl_kernel kernel_vector_add = clCreateKernel(program, "vector_add", &err);
-	cl_kernel kernel_logistic_map = clCreateKernel(program, "logistic_map", &err);
+	cl_kernel kernel_logistic_map_int = clCreateKernel(program, "logistic_map_int", &err);
+	cl_kernel kernel_logistic_map_long_int = clCreateKernel(program, "logistic_map_long_int", &err);
 	if (!kernel_square || !kernel_vector_add || err != CL_SUCCESS)
 	{
 		printf("Error: Failed to create compute kernel!\n");
@@ -121,8 +131,10 @@ int main(int argc, char **argv)
 	cl_mem output = clCreateBuffer(context, CL_MEM_WRITE_ONLY, sizeof(float) * count, NULL, NULL);
 	cl_mem output_vector_add = clCreateBuffer(context, CL_MEM_WRITE_ONLY, sizeof(float) * count, NULL, NULL);
 
-	cl_mem input_int = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(long int) * count, NULL, NULL);
-	cl_mem output_logistic_map = clCreateBuffer(context, CL_MEM_WRITE_ONLY, sizeof(long int) * count, NULL, NULL);
+	cl_mem input_int = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(int) * count, NULL, NULL);
+	cl_mem input_long_int = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(long int) * count, NULL, NULL);
+	cl_mem output_logistic_map_int = clCreateBuffer(context, CL_MEM_WRITE_ONLY, sizeof(int) * count, NULL, NULL);
+	cl_mem output_logistic_map_long_int = clCreateBuffer(context, CL_MEM_WRITE_ONLY, sizeof(long int) * count, NULL, NULL);
 
 	if (!input || !output)
 	{
@@ -132,7 +144,8 @@ int main(int argc, char **argv)
 
 	// Write our data set into the input array in device memory
 	err = clEnqueueWriteBuffer(commands, input, CL_TRUE, 0, sizeof(float) * count, data, 0, NULL, NULL);
-	err = clEnqueueWriteBuffer(commands, input_int, CL_TRUE, 0, sizeof(long int) * count, data_int, 0, NULL, NULL);
+	err = clEnqueueWriteBuffer(commands, input_int, CL_TRUE, 0, sizeof(int) * count, data_int, 0, NULL, NULL);
+	err = clEnqueueWriteBuffer(commands, input_long_int, CL_TRUE, 0, sizeof(long int) * count, data_long_int, 0, NULL, NULL);
 	if (err != CL_SUCCESS)
 	{
 		printf("Error: Failed to write to source array!\n");
@@ -161,7 +174,9 @@ int main(int argc, char **argv)
 
 	size_t global = count;
 
-	// =================
+	// ======================== //
+	//  Compute Execution Time  //
+	// ======================== //
 
 	// run test on square
 	double square_time;
@@ -211,13 +226,13 @@ int main(int argc, char **argv)
 	vector_add_time /= TEST_ITER;
 	printf("vector_add_time is %f\n", (double)vector_add_time / CLOCKS_PER_SEC);
 
-	double logistic_map_time;
+	double logistic_map_int_time;
 	for (i = 0; i < TEST_ITER; i++)
 	{
 		// set arguments for logistic_map
 		err = 0;
-		err |= clSetKernelArg(kernel_logistic_map, 0, sizeof(cl_mem), &input_int);
-		err |= clSetKernelArg(kernel_logistic_map, 1, sizeof(cl_mem), &output_logistic_map);
+		err |= clSetKernelArg(kernel_logistic_map_int, 0, sizeof(cl_mem), &input_int);
+		err |= clSetKernelArg(kernel_logistic_map_int, 1, sizeof(cl_mem), &output_logistic_map_int);
 		if (err != CL_SUCCESS)
 		{
 			printf("Error: Failed to set kernel_logistic_map arguments! %d\n", err);
@@ -226,44 +241,73 @@ int main(int argc, char **argv)
 
 		clock_t start, end;
 		start = clock();
-		err = clEnqueueNDRangeKernel(commands, kernel_logistic_map, 1, NULL, &global, &local_logistic_map, 0, NULL, NULL);
+		err = clEnqueueNDRangeKernel(commands, kernel_logistic_map_int, 1, NULL, &global, &local_logistic_map, 0, NULL, NULL);
 		end = clock();
-		logistic_map_time += end - start;
+		logistic_map_int_time += end - start;
 	}
-	logistic_map_time /= TEST_ITER;
-	printf("logistic_map_time is %f\n", (double)logistic_map_time / CLOCKS_PER_SEC);
+	logistic_map_int_time /= TEST_ITER;
+	printf("logistic_map_int_time is %f\n", (double)logistic_map_int_time / CLOCKS_PER_SEC);
 
-	// ===========================================
+	double logistic_map_long_int_time;
+	for (i = 0; i < TEST_ITER; i++)
+	{
+		// set arguments for logistic_map
+		err = 0;
+		err |= clSetKernelArg(kernel_logistic_map_long_int, 0, sizeof(cl_mem), &input_long_int);
+		err |= clSetKernelArg(kernel_logistic_map_long_int, 1, sizeof(cl_mem), &output_logistic_map_long_int);
+		if (err != CL_SUCCESS)
+		{
+			printf("Error: Failed to set kernel_logistic_map arguments! %d\n", err);
+			exit(1);
+		}
 
-	// Execute the kernel over the entire range of our 1d input data set
-	// using the maximum number of work group items for this device
+		clock_t start, end;
+		start = clock();
+		err = clEnqueueNDRangeKernel(commands, kernel_logistic_map_long_int, 1, NULL, &global, &local_logistic_map, 0, NULL, NULL);
+		end = clock();
+		logistic_map_long_int_time += end - start;
+	}
+	logistic_map_long_int_time /= TEST_ITER;
+	printf("logistic_map_long_int_time is %f\n", (double)logistic_map_long_int_time / CLOCKS_PER_SEC);
 
-	clock_t start, end;
-	start = clock();
+	// ================================== //
+	//	Check if the results are correct  //
+	// ================================== //
+
+	err = 0;
+	// set arguments for vector_add
+	err = clSetKernelArg(kernel_square, 0, sizeof(cl_mem), &input);
+	err |= clSetKernelArg(kernel_square, 1, sizeof(cl_mem), &output);
+	err |= clSetKernelArg(kernel_square, 2, sizeof(unsigned int), &count);
+
+	// set arguments for vector_add
+	err = clSetKernelArg(kernel_vector_add, 0, sizeof(cl_mem), &input);
+	err |= clSetKernelArg(kernel_vector_add, 1, sizeof(cl_mem), &input);
+	err |= clSetKernelArg(kernel_vector_add, 2, sizeof(cl_mem), &output_vector_add);
+
+	// set arguments for logistic_map_int
+	err |= clSetKernelArg(kernel_logistic_map_int, 0, sizeof(cl_mem), &input_int);
+	err |= clSetKernelArg(kernel_logistic_map_int, 1, sizeof(cl_mem), &output_logistic_map_int);
+
+	// set arguments for logistic_map_long_int
+	err |= clSetKernelArg(kernel_logistic_map_long_int, 0, sizeof(cl_mem), &input_long_int);
+	err |= clSetKernelArg(kernel_logistic_map_long_int, 1, sizeof(cl_mem), &output_logistic_map_long_int);
 
 	err = clEnqueueNDRangeKernel(commands, kernel_square, 1, NULL, &global, &local, 0, NULL, NULL);
 	err = clEnqueueNDRangeKernel(commands, kernel_vector_add, 1, NULL, &global, &local, 0, NULL, NULL);
-	err = clEnqueueNDRangeKernel(commands, kernel_logistic_map, 1, NULL, &global, &local_logistic_map, 0, NULL, NULL);
-	if (err)
-	{
-		printf("Error: Failed to execute kernel!\n");
-		return EXIT_FAILURE;
-	}
-
-	// Wait for the command commands to get serviced before reading back results
-	clFinish(commands);
-
-	end = clock();
-	printf("It took %lf seconds\n", (double)(end - start) / CLOCKS_PER_SEC);
+	err = clEnqueueNDRangeKernel(commands, kernel_logistic_map_int, 1, NULL, &global, &local_logistic_map, 0, NULL, NULL);
+	err = clEnqueueNDRangeKernel(commands, kernel_logistic_map_long_int, 1, NULL, &global, &local_logistic_map, 0, NULL, NULL);
 
 	// Read back the results from the device to verify the output
 	//
-	float results[DATA_SIZE];				  // results returned from device
-	float results_vector_add[DATA_SIZE];	  // results returned from device
-	long int results_logistic_map[DATA_SIZE]; // results returned from device
+	float results[DATA_SIZE];						   // results returned from device
+	float results_vector_add[DATA_SIZE];			   // results returned from device
+	int results_logistic_map_int[DATA_SIZE];		   // results returned from device
+	long int results_logistic_map_long_int[DATA_SIZE]; // results returned from device
 	err = clEnqueueReadBuffer(commands, output, CL_TRUE, 0, sizeof(float) * count, results, 0, NULL, NULL);
 	err = clEnqueueReadBuffer(commands, output_vector_add, CL_TRUE, 0, sizeof(float) * count, results_vector_add, 0, NULL, NULL);
-	err = clEnqueueReadBuffer(commands, output_logistic_map, CL_TRUE, 0, sizeof(int) * count, results_logistic_map, 0, NULL, NULL);
+	err = clEnqueueReadBuffer(commands, output_logistic_map_int, CL_TRUE, 0, sizeof(int) * count, results_logistic_map_int, 0, NULL, NULL);
+	err = clEnqueueReadBuffer(commands, output_logistic_map_long_int, CL_TRUE, 0, sizeof(long int) * count, results_logistic_map_long_int, 0, NULL, NULL);
 	if (err != CL_SUCCESS)
 	{
 		printf("Error: Failed to read output array! %d\n", err);
@@ -288,10 +332,10 @@ int main(int argc, char **argv)
 		}
 	}
 
-	unsigned int correct_logistic_map = 0;
+	unsigned int correct_logistic_map_int = 0;
 	for (i = 0; i < count; i++)
 	{
-		long int correct_ans_i = (22 * data_int[i] * (data_int[i] + 1)) % 6700417;
+		int correct_ans_i = (22 * data_int[i] * (data_int[i] + 1)) % 6700417;
 		correct_ans_i = (22 * correct_ans_i * (correct_ans_i + 1)) % 6700417;
 		correct_ans_i = (22 * correct_ans_i * (correct_ans_i + 1)) % 6700417;
 		correct_ans_i = (22 * correct_ans_i * (correct_ans_i + 1)) % 6700417;
@@ -301,30 +345,56 @@ int main(int argc, char **argv)
 		correct_ans_i = (22 * correct_ans_i * (correct_ans_i + 1)) % 6700417;
 		correct_ans_i = (22 * correct_ans_i * (correct_ans_i + 1)) % 6700417;
 		correct_ans_i = (22 * correct_ans_i * (correct_ans_i + 1)) % 6700417;
-		if (results_logistic_map[i] == correct_ans_i)
+		if (results_logistic_map_int[i] == correct_ans_i)
 		{
-			correct_logistic_map++;
+			correct_logistic_map_int++;
 		}
 		else if (i < 30)
 		{
-			printf("input: %ld, expected %ld, but got %ld\n", data_int[i], correct_ans_i, results_logistic_map[i]);
+			printf("input: %d, expected %d, but got %d\n", data_int[i], correct_ans_i, results_logistic_map_int[i]);
+		}
+	}
+
+	unsigned int correct_logistic_map_long_int = 0;
+	for (i = 0; i < count; i++)
+	{
+		long int correct_ans_i = (22 * data_long_int[i] * (data_long_int[i] + 1)) % 6700417;
+		correct_ans_i = (22 * correct_ans_i * (correct_ans_i + 1)) % 6700417;
+		correct_ans_i = (22 * correct_ans_i * (correct_ans_i + 1)) % 6700417;
+		correct_ans_i = (22 * correct_ans_i * (correct_ans_i + 1)) % 6700417;
+		correct_ans_i = (22 * correct_ans_i * (correct_ans_i + 1)) % 6700417;
+		correct_ans_i = (22 * correct_ans_i * (correct_ans_i + 1)) % 6700417;
+		correct_ans_i = (22 * correct_ans_i * (correct_ans_i + 1)) % 6700417;
+		correct_ans_i = (22 * correct_ans_i * (correct_ans_i + 1)) % 6700417;
+		correct_ans_i = (22 * correct_ans_i * (correct_ans_i + 1)) % 6700417;
+		correct_ans_i = (22 * correct_ans_i * (correct_ans_i + 1)) % 6700417;
+		if (results_logistic_map_long_int[i] == correct_ans_i)
+		{
+			correct_logistic_map_long_int++;
+		}
+		else if (i < 30)
+		{
+			printf("input: %ld, expected %ld, but got %ld\n", data_long_int[i], correct_ans_i, results_logistic_map_long_int[i]);
 		}
 	}
 
 	printf("\n=== result summary ===\n");
 	printf("Computed '%d/%d' correct values for square!\n", correct, count);
 	printf("Computed '%d/%d' correct values for vector_add!\n", correct_vector_add, count);
-	printf("Computed '%d/%d' correct values for logistic_map!\n", correct_logistic_map, count);
+	printf("Computed '%d/%d' correct values for logistic_map_int!\n", correct_logistic_map_long_int, count);
+	printf("Computed '%d/%d' correct values for logistic_map_long_int!\n", correct_logistic_map_long_int, count);
 
 	// Shutdown and cleanup
 	clReleaseMemObject(input);
 	clReleaseMemObject(output);
 	clReleaseMemObject(output_vector_add);
-	clReleaseMemObject(output_logistic_map);
+	clReleaseMemObject(output_logistic_map_int);
+	clReleaseMemObject(output_logistic_map_long_int);
 	clReleaseProgram(program);
 	clReleaseKernel(kernel_square);
 	clReleaseKernel(kernel_vector_add);
-	clReleaseKernel(kernel_logistic_map);
+	clReleaseKernel(kernel_logistic_map_int);
+	clReleaseKernel(kernel_logistic_map_long_int);
 	clReleaseCommandQueue(commands);
 	clReleaseContext(context);
 
