@@ -182,6 +182,9 @@ int main(int argc, char **argv)
 	double square_time;
 	for (i = 0; i < TEST_ITER; i++)
 	{
+		clock_t start, end;
+		start = clock();
+
 		// Set the arguments to our compute kernel_square
 		err = 0;
 		err = clSetKernelArg(kernel_square, 0, sizeof(cl_mem), &input);
@@ -193,8 +196,6 @@ int main(int argc, char **argv)
 			exit(1);
 		}
 
-		clock_t start, end;
-		start = clock();
 		err = clEnqueueNDRangeKernel(commands, kernel_square, 1, NULL, &global, &local, 0, NULL, NULL);
 		clFinish(commands);
 		end = clock();
@@ -206,6 +207,9 @@ int main(int argc, char **argv)
 	double vector_add_time;
 	for (i = 0; i < TEST_ITER; i++)
 	{
+		clock_t start, end;
+		start = clock();
+
 		// Set the arguments to our compute kernel_vector_add
 		err = 0;
 		err = clSetKernelArg(kernel_vector_add, 0, sizeof(cl_mem), &input);
@@ -217,9 +221,10 @@ int main(int argc, char **argv)
 			exit(1);
 		}
 
-		clock_t start, end;
-		start = clock();
 		err = clEnqueueNDRangeKernel(commands, kernel_vector_add, 1, NULL, &global, &local, 0, NULL, NULL);
+
+		// Wait for the command commands to get serviced before reading back results
+		clFinish(commands);
 		end = clock();
 		vector_add_time += end - start;
 	}
@@ -229,6 +234,9 @@ int main(int argc, char **argv)
 	double logistic_map_int_time;
 	for (i = 0; i < TEST_ITER; i++)
 	{
+		clock_t start, end;
+		start = clock();
+
 		// set arguments for logistic_map
 		err = 0;
 		err |= clSetKernelArg(kernel_logistic_map_int, 0, sizeof(cl_mem), &input_int);
@@ -239,9 +247,10 @@ int main(int argc, char **argv)
 			exit(1);
 		}
 
-		clock_t start, end;
-		start = clock();
 		err = clEnqueueNDRangeKernel(commands, kernel_logistic_map_int, 1, NULL, &global, &local_logistic_map, 0, NULL, NULL);
+
+		// Wait for the command commands to get serviced before reading back results
+		clFinish(commands);
 		end = clock();
 		logistic_map_int_time += end - start;
 	}
@@ -251,6 +260,9 @@ int main(int argc, char **argv)
 	double logistic_map_long_int_time;
 	for (i = 0; i < TEST_ITER; i++)
 	{
+		clock_t start, end;
+		start = clock();
+
 		// set arguments for logistic_map
 		err = 0;
 		err |= clSetKernelArg(kernel_logistic_map_long_int, 0, sizeof(cl_mem), &input_long_int);
@@ -261,9 +273,9 @@ int main(int argc, char **argv)
 			exit(1);
 		}
 
-		clock_t start, end;
-		start = clock();
 		err = clEnqueueNDRangeKernel(commands, kernel_logistic_map_long_int, 1, NULL, &global, &local_logistic_map, 0, NULL, NULL);
+		// Wait for the command commands to get serviced before reading back results
+		clFinish(commands);
 		end = clock();
 		logistic_map_long_int_time += end - start;
 	}
