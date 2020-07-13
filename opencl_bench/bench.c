@@ -47,16 +47,15 @@ int main(int argc, char **argv)
 
 	// create random data with float
 	int i = 0;
-	float data[DATA_SIZE];
 	unsigned int count = DATA_SIZE;
+	float data[DATA_SIZE];
 	for (i = 0; i < count; i++)
-		// data[i] = rand() / (float)RAND_MAX;
-		data[i] = (float)i;
+		data[i] = rand() / (float)RAND_MAX;
+	data[i] = (float)i;
 
 	int data_int[DATA_SIZE];
 	for (i = 0; i < count; i++)
 	{
-		// data_int[i] = (long int)(rand() / 1000);
 		data_int[i] = (int)i;
 	}
 
@@ -114,11 +113,14 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
+	clock_t start_init, end_init;
+	start_init = clock();
+
 	// Create the compute kernel in the program we wish to run
 	//
 	cl_kernel kernel_square = clCreateKernel(program, "square", &err);
 	cl_kernel kernel_vector_add = clCreateKernel(program, "vector_add", &err);
-	cl_kernel kernel_logistic_map_int = clCreateKernel(program, "logistic_map_int", &err);
+	cl_kernel kernel_logistic_map_int = clCreateKernel(program, "logistic_map_10", &err);
 	cl_kernel kernel_logistic_map_long_int = clCreateKernel(program, "logistic_map_long_int", &err);
 	if (!kernel_square || !kernel_vector_add || err != CL_SUCCESS)
 	{
@@ -151,6 +153,9 @@ int main(int argc, char **argv)
 		printf("Error: Failed to write to source array!\n");
 		exit(1);
 	}
+
+	end_init = clock();
+	printf("initialization is %f(s)\n", (double)(end_init - start_init) / CLOCKS_PER_SEC);
 
 	// ==================
 
@@ -312,11 +317,11 @@ int main(int argc, char **argv)
 
 	// Read back the results from the device to verify the output
 	//
-	float results[DATA_SIZE];						   // results returned from device
+	int results_square[DATA_SIZE];					   // results returned from device
 	float results_vector_add[DATA_SIZE];			   // results returned from device
 	int results_logistic_map_int[DATA_SIZE];		   // results returned from device
 	long int results_logistic_map_long_int[DATA_SIZE]; // results returned from device
-	err = clEnqueueReadBuffer(commands, output, CL_TRUE, 0, sizeof(float) * count, results, 0, NULL, NULL);
+	err = clEnqueueReadBuffer(commands, output, CL_TRUE, 0, sizeof(float) * count, results_square, 0, NULL, NULL);
 	err = clEnqueueReadBuffer(commands, output_vector_add, CL_TRUE, 0, sizeof(float) * count, results_vector_add, 0, NULL, NULL);
 	err = clEnqueueReadBuffer(commands, output_logistic_map_int, CL_TRUE, 0, sizeof(int) * count, results_logistic_map_int, 0, NULL, NULL);
 	err = clEnqueueReadBuffer(commands, output_logistic_map_long_int, CL_TRUE, 0, sizeof(long int) * count, results_logistic_map_long_int, 0, NULL, NULL);
@@ -331,7 +336,7 @@ int main(int argc, char **argv)
 	unsigned int correct = 0;
 	for (i = 0; i < count; i++)
 	{
-		if (results[i] == data[i] * data[i])
+		if (results_square[i] == data_int[i] * data_int[i])
 			correct++;
 	}
 
